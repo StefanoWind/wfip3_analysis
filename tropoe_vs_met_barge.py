@@ -38,11 +38,8 @@ days_plot=7
 with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
 
-source_trp=os.path.join(cd,config['path_trp_comp'])
-source_met=os.path.join(cd,config['path_met_comp'])
-
-files_trp=glob.glob(source_trp)
-files_met=glob.glob(source_met)
+files_trp=glob.glob(config['path_trp_comp'])
+files_met=glob.glob(config['path_met_comp'])
 
 os.makedirs(os.path.join(cd,'figures/temp_barg'),exist_ok=True)
 os.makedirs(os.path.join(cd,'figures/r_barg'),exist_ok=True)
