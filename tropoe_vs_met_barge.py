@@ -23,8 +23,7 @@ plt.close('all')
 
 #dataset
 source_config=os.path.join(cd,'configs','config.yaml')
-source_trp=os.path.join(cd,'data/wfip3/barg.assist.tropoe.z01.c0/*nc')
-source_met=os.path.join(cd,'data/wfip3/barg.ecflux.z01.a0/*nc')
+
 z_irs=3#[m] height of ASSIST asl
 time_shift_met=np.timedelta64(10, 'm')#shift met data to center of avg window
 M_h20=18.015#[g/mol] molar mass of water 
@@ -38,12 +37,15 @@ days_plot=7
 #config
 with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
-    
+
+source_trp=os.path.join(cd,config['path_trp_comp'])
+source_met=os.path.join(cd,config['path_met_comp'])
+
 files_trp=glob.glob(source_trp)
 files_met=glob.glob(source_met)
 
-os.makedirs(os.path.join(cd,'figures/temp_barg'))
-os.makedirs(os.path.join(cd,'figures/r_barg'))          
+os.makedirs(os.path.join(cd,'figures/temp_barg'),exist_ok=True)
+os.makedirs(os.path.join(cd,'figures/r_barg'),exist_ok=True)
   
 #%% Main
 
