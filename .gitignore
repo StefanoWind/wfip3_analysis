@@ -1,0 +1,17 @@
+__pycache__
+*.cdf
+*.png
+*.pyc
+*.nc
+*.xlsx
+*.csv
+*.m
+*.tar
+*.txt
+*.pkl
+*.yaml
+*.log
+trash/*
+*.dat
+*.sh
+*.out
