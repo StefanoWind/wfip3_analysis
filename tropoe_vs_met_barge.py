@@ -71,7 +71,13 @@ r2_met=M_h20/M_a*e2_met/(P2_met-e2_met)*1000
 dr_dz_met=(r2_met-r1_met)/(z2_met-z1_met)
 
 #read TROPoe data
-Data_trp=xr.open_mfdataset(files_trp).sel(height=slice(0,max_height))
+# Data_trp=xr.open_mfdataset(files_trp).sel(height=slice(0,max_height))
+
+Data_trp=xr.open_mfdataset(files_trp,   # or 'nested' depending on your case
+    data_vars='minimal',   # don't load all variables
+    coords='minimal',
+    compat='override',
+    preprocess=lambda ds: ds[['temperature','waterVapor','gamma','rmsa','cbh','lwp','rh','pressure']]).sel(height=slice(0,max_height))
 
 #qc TROPoe data
 Data_trp['cbh'][(Data_trp['lwp']<config['min_lwp']).compute()]=Data_trp['height'].max()#remove clouds with low lwp
