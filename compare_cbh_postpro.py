@@ -5,8 +5,6 @@ Compare CBH from lidar and ceilometer
 
 import os
 cd=os.getcwd()
-import sys
-sys.path.append(os.path.join(cd,'utils')) 
 from matplotlib import pyplot as plt
 import xarray as xr
 import glob
@@ -14,8 +12,6 @@ import numpy as np
 import matplotlib
 import matplotlib.dates as mdates
 import warnings
-matplotlib.rcParams['font.family'] = 'serif'
-matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 14
 
 warnings.filterwarnings('ignore')
@@ -44,7 +40,8 @@ for s in sources:
         else:
             data[s]=data_f
     
-    
+os.makedirs(os.path.join(cd,'figures/cbh_comp/'),exist_ok=True)
+  
 #%% Plots
 plt.close('all')
 date_fmt = mdates.DateFormatter('%Y-%m-%d')
@@ -67,3 +64,5 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
     plt.grid()
     plt.legend()
     plt.title('CBH comparison at barge')
+    plt.savefig(os.path.join(cd,f'figures/cbh_comp/{str(t1)[:10].replace("-","")}.{str(t2)[:10].replace("-","")}.cbh.png'))
+    plt.close()

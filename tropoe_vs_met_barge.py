@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 '''
 Compare TROPoe results and met on barge
 '''
@@ -17,7 +16,6 @@ import warnings
 warnings.filterwarnings('ignore')
 matplotlib.rcParams['font.size'] = 12
 plt.close('all')
-
 
 #%% Inputs
 
@@ -116,9 +114,9 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
     plt.figure(figsize=(18,8))
     plt.subplot(2,1,1)
     sel=(time_met>=t1)*(time_met<=t2)
-    plt.plot(time_met[sel],T2_met[sel],label='Met')
+    plt.plot(time_met[sel],T2_met[sel],'.',label='Met')
     sel=(time_trp>=t1)*(time_trp<=t2)
-    plt.plot(time_trp[sel],T2_trp[sel],label='TROPoe')
+    plt.plot(time_trp[sel],T2_trp[sel],'.',label='TROPoe')
     plt.ylabel(f'Temperature ({z2_met} m)'+' [$^\circ$C]')
     plt.grid()
     plt.title('Temperature comparison at barge')
@@ -127,9 +125,9 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
     
     plt.subplot(2,1,2)
     sel=(time_met>=t1)*(time_met<=t2)
-    plt.plot(time_met[sel],dT_dz_met[sel])
+    plt.plot(time_met[sel],dT_dz_met[sel],'.')
     sel=(time_trp>=t1)*(time_trp<=t2)
-    plt.plot(time_trp[sel],dT_dz_trp[sel])
+    plt.plot(time_trp[sel],dT_dz_trp[sel],'.')
     plt.xlabel('Time (UTC)')
     plt.ylabel(f'Temperature gradient ({z2_met} m -{z1_met} m)'+' [$^\circ$C m${-1}$]')
     plt.gca().xaxis.set_major_formatter(date_fmt)        
@@ -144,9 +142,9 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
     plt.figure(figsize=(18,8))
     plt.subplot(2,1,1)
     sel=(time_met>=t1)*(time_met<=t2)
-    plt.plot(time_met[sel],r2_met[sel],label='Met')
+    plt.plot(time_met[sel],r2_met[sel],'.',label='Met')
     sel=(time_trp>=t1)*(time_trp<=t2)
-    plt.plot(time_trp[sel],r2_trp[sel],label='TROPoe')
+    plt.plot(time_trp[sel],r2_trp[sel],'.',label='TROPoe')
     plt.ylabel(f'Mixing ratio ({z2_met} m)'+' [%]')
     plt.grid()
     plt.title('Mixing ratio comparison at barge')
@@ -155,9 +153,9 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
     
     plt.subplot(2,1,2)
     sel=(time_met>=t1)*(time_met<=t2)
-    plt.plot(time_met[sel],dr_dz_met[sel])
+    plt.plot(time_met[sel],dr_dz_met[sel],'.')
     sel=(time_trp>=t1)*(time_trp<=t2)
-    plt.plot(time_trp[sel],dr_dz_trp[sel])
+    plt.plot(time_trp[sel],dr_dz_trp[sel],'.')
     plt.xlabel('Time (UTC)')
     plt.ylabel(f'Mixing ratio ({z2_met} m -{z1_met} m)'+' [% m${-1}$]')
     plt.gca().xaxis.set_major_formatter(date_fmt)        
