@@ -20,7 +20,7 @@ warnings.filterwarnings('ignore')
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 10
+matplotlib.rcParams['font.size'] = 12
 matplotlib.rcParams['savefig.dpi'] = 300
 plt.close('all')
 
@@ -73,7 +73,16 @@ barge_on_station_spans=[(barge_on_station.index[s],barge_on_station.index[e]) fo
 data_full={}#full height profile up to height_max, used for the diurnal heatmap
 data={}#sparse heights, used for the scatter and time series plots
 for name,path in config['sources_comparison'].items():
-    files=sorted(glob.glob(os.path.join(cd,path,'*nc')))
+    files=sorted(glob.glob(os.path.join(cd,path,'*.nc')))
+    good_files=[]
+    for f in files:
+        try:
+            with xr.open_dataset(f):
+                pass
+            good_files.append(f)
+        except Exception as e:
+            print(f'  skipping unreadable file {os.path.basename(f)}: {e}')
+    files=good_files
     print(f'{name}: {len(files)} files found')
     if len(files)==0:
         continue
