@@ -95,10 +95,8 @@ XY0=utm.from_latlon(lat0,lon0)
 #%% Main
 XY=utm.from_latlon(Data['bow_lat'].values,Data['bow_lon'].values)
 
-a2e = DAP('a2e.energy.gov',confirm_downloads=False)
+a2e = DAP('wdh.energy.gov',confirm_downloads=False)
 a2e.setup_cert_auth(username=username, password=password)
-
-raise BaseException()
 
 files={}
 time_file={}

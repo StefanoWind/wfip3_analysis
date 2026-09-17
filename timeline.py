@@ -6,8 +6,10 @@ Read barge movement file
 import os
 cd=os.getcwd()
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from doe_dap_dl import DAP
+import utm
 import warnings
 from datetime import datetime
 import matplotlib.dates as mdates
@@ -23,31 +25,53 @@ warnings.filterwarnings('ignore')
 username='sletizia'
 password='pass_DAP1506@'
 
-sites=["Martha's Vineyard","Cape Cod","NOAA Ship"]
+sites=["Martha's Vineyard","Cape Cod","Rhode Island","Barge"]
 
-channels={"Martha's Vineyard":['wfip3/mvco.assist.z01.00','wfip3/mvco.ceil.z01.00','wfip3/mvco.met.z01.00'],
-          "Cape Cod":         ['wfip3/caco.assist.z01.00','wfip3/caco.lidar.z02.a0'],
-          "NOAA Ship":        ['wfip3/noaa_ship.assist.z01.00','wfip3/noaa_ship.ceil.z01.b0']}
+channels={"Martha's Vineyard":['wfip3/mvco.assist.z01.00','wfip3/mvco.ceil.z01.00'],
+          "Cape Cod":         ['wfip3/caco.assist.z01.00','wfip3/caco.lidar.z02.a0','wfip3/caco.ceil.z01.b0','wfip3/caco.met.z01.00'],
+          "Rhode Island":     ['wfip3/rhod.assist.z01.00','wfip3/rhod.lidar.z01.a0','wfip3/rhod.met.z01.00'],
+          "Barge":            ['wfip3/barg.assist.z01.00','wfip3/barg.ceil.z01.b0','wfip3/barg.ecflux.z01.a0']}
 
 ext={'wfip3/mvco.assist.z01.00':'assistcha',
      'wfip3/mvco.ceil.z01.00':'',
-     'wfip3/mvco.met.z01.00':'',
      'wfip3/caco.assist.z01.00':'assistno12cha',
-     'wfip3/caco.lidar.z02.a0':'user5',
-     'wfip3/noaa_ship.assist.z01.00':'assistno12cha',
-     'wfip3/noaa_ship.ceil.z01.b0':''}
+     'wfip3/caco.lidar.z02.a0':'fpt',
+     'wfip3/caco.ceil.z01.b0':'',
+     'wfip3/caco.met.z01.00':'',
+     'wfip3/rhod.assist.z01.00':'assistcha',
+     'wfip3/rhod.lidar.z01.a0':'',
+     'wfip3/rhod.met.z01.00':'',
+     'wfip3/barg.assist.z01.00':'assistno12cha',
+     'wfip3/barg.ceil.z01.b0':'',
+     'wfip3/barg.ecflux.z01.a0':''}
      
-dtype={'wfip3/mvco.assist.z01.00':'cdf',
-    'wfip3/mvco.ceil.z01.00':'dat',
-    'wfip3/mvco.met.z01.00':'dat',
-    'wfip3/caco.assist.z01.00':'cdf',
-    'wfip3/caco.lidar.z02.a0':'nc',
-    'wfip3/noaa_ship.assist.z01.00':'cdf',
-    'wfip3/noaa_ship.ceil.z01.b0':'nc'}
+     
+dtype= {'wfip3/mvco.assist.z01.00':'cdf',
+        'wfip3/mvco.ceil.z01.00':'dat',
+        'wfip3/caco.assist.z01.00':'cdf',
+        'wfip3/caco.lidar.z02.a0':'nc',
+        'wfip3/caco.ceil.z01.b0':'nc',
+        'wfip3/caco.met.z01.00':'nc',
+        'wfip3/rhod.assist.z01.00':'cdf',
+        'wfip3/rhod.lidar.z01.a0':'nc',
+        'wfip3/rhod.met.z01.00':'csv',
+        'wfip3/barg.assist.z01.00':'cdf',
+        'wfip3/barg.ceil.z01.b0':'nc',
+        'wfip3/barg.ecflux.z01.a0':'nc'}
 
-sdate='20231001000000'#start date for data search
-edate='20251231000000'#end date for data search
+sdate='20240801000000'#start date for data search
+edate='20240805000000'#end date for data search
 hours=168
+
+#barge info
+barge_gps_source='data/WHOI_WFIP3_barge_bowstern_GPS_22-Oct-2024.dat'
+barge_gps_headers='yyyy mm dd HH MM SS bow_lon bow_lat stern_lon stern_lat'
+lat0=40.9015#[deg]
+lon0=-70.787#[deg]
+max_dist=600#[m]
+
+#graphics
+colors={'assist':'r','ceil':'b','met':'k','lidar':'g','ecflux':'k'}
 
 #%% Functions
 def strtime_to_dt64(strtime):
@@ -118,18 +142,36 @@ for site in sites:
     
         time_file[site][channel]=np.array([datetime.strptime(f["date_time"],"%Y%m%d%H%M%S") for f in files])
 
+barge_gps=pd.read_csv(barge_gps_source, delim_whitespace=True,header=None, names=barge_gps_headers.split(' '))
+barge_gps=barge_gps.replace(999,np.nan)
+barge_gps=barge_gps.dropna(subset=['bow_lat','bow_lon'])
+
+barge_gps_time=np.array([np.datetime64(f'{Y}-{m:02d}-{d:02d}T{H:02d}:{M:02d}:{S:02d}') for Y,m,d,H,M,S in \
+                    zip(barge_gps['yyyy'],barge_gps['mm'],barge_gps['dd'],barge_gps['HH'],barge_gps['MM'],barge_gps['SS'])])
+
+XY0=utm.from_latlon(lat0,lon0)
+XY=utm.from_latlon(barge_gps['bow_lat'].values,barge_gps['bow_lon'].values)
+
+inplace=(((XY[0]-XY0[0])**2+(XY[0]-XY0[0])**2)**0.5<max_dist)+0
+barge_start=np.where(np.diff(inplace)>0)[0]
+barge_end=np.where(np.diff(inplace)<0)[0]
+
 #%% Plots
-palette=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948']
 all_channels=sorted({channel for site in sites for channel in channels[site]})
-colors={channel:palette[i%len(palette)] for i,channel in enumerate(all_channels)}
 
 date_fmt=mdates.DateFormatter('%b %Y')
 fig,axs=plt.subplots(len(sites),1,figsize=(16,3*len(sites)),sharex=True,squeeze=False)
 for ax,site in zip(axs[:,0],sites):
     site_channels=channels[site]
+    if site=='Barge':
+        for ctr,(s,e) in enumerate(zip(barge_start,barge_end)):
+            if ctr==0:
+                ax.axvspan(barge_gps_time[s], barge_gps_time[e],facecolor='lightblue', hatch='//',edgecolor='gray',alpha=0.5,label='Barge on station')
+            else:
+                ax.axvspan(barge_gps_time[s], barge_gps_time[e],facecolor='lightblue', hatch='//',edgecolor='gray',alpha=0.5)
     for i,channel in enumerate(site_channels):
         t=time_file[site][channel]
-        ax.plot(t,np.zeros(len(t))+i,'.',markersize=10,color=colors[channel])
+        ax.plot(t,np.zeros(len(t))+i,'.',markersize=10,color=colors[channel.split('.')[1]])
     ax.set_ylim(-0.5,len(site_channels)-0.5)
     ax.set_yticks(range(len(site_channels)))
     ax.set_yticklabels(site_channels)
@@ -137,5 +179,7 @@ for ax,site in zip(axs[:,0],sites):
     ax.grid(True,color='#e1e0d9')
     ax.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1))
     ax.xaxis.set_major_formatter(date_fmt)
+    if site=='Barge':
+        ax.legend(draggable=True)
 plt.tight_layout()
 
