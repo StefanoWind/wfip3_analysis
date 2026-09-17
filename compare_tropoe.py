@@ -74,20 +74,19 @@ data_full={}#full height profile up to height_max, used for the diurnal heatmap
 data={}#sparse heights, used for the scatter and time series plots
 for name,path in config['sources_comparison'].items():
     files=sorted(glob.glob(os.path.join(cd,path,'*.nc')))
-    good_files=[]
+    datasets=[]
     for f in files:
         try:
-            with xr.open_dataset(f):
-                pass
-            good_files.append(f)
+            datasets.append(xr.open_dataset(f,chunks={})[list(variables)])
         except Exception as e:
             print(f'  skipping unreadable file {os.path.basename(f)}: {e}')
-    files=good_files
-    print(f'{name}: {len(files)} files found')
-    if len(files)==0:
+    print(f'{name}: {len(datasets)} files found')
+    if len(datasets)==0:
         continue
-    ds=xr.open_mfdataset(files,data_vars='minimal',coords='minimal',compat='override',
-                          preprocess=lambda d: d[list(variables)])
+    #concat (instead of open_mfdataset's combine_by_coords) to tolerate overlapping/out-of-order file coverage,
+    #then sort and drop duplicate timestamps to guarantee a monotonic time axis
+    ds=xr.concat(datasets,dim='time',data_vars='minimal',coords='minimal',compat='override')
+    ds=ds.sortby('time').drop_duplicates(dim='time',keep='first')
     ds=ds.sel(height=slice(0,height_max/1000)).compute()
 
     #QC flags
