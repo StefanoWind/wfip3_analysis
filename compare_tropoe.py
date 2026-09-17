@@ -15,6 +15,7 @@ import glob
 import yaml
 import itertools
 import utm
+from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -75,9 +76,12 @@ data={}#sparse heights, used for the scatter and time series plots
 for name,path in config['sources_comparison'].items():
     files=sorted(glob.glob(os.path.join(cd,path,'*.nc')))
     datasets=[]
-    for f in files:
+    for f in tqdm(files,desc=f'{name}: loading',unit='file'):
         try:
-            datasets.append(xr.open_dataset(f,chunks={})[list(variables)])
+            #load right away (not lazily) so the progress bar reflects the actual disk-read time,
+            #and slice height here to shrink the data volume before concatenation
+            d=xr.open_dataset(f)[list(variables)].sel(height=slice(0,height_max/1000)).load()
+            datasets.append(d)
         except Exception as e:
             print(f'  skipping unreadable file {os.path.basename(f)}: {e}')
     print(f'{name}: {len(datasets)} files found')
@@ -87,7 +91,6 @@ for name,path in config['sources_comparison'].items():
     #then sort and drop duplicate timestamps to guarantee a monotonic time axis
     ds=xr.concat(datasets,dim='time',data_vars='minimal',coords='minimal',compat='override')
     ds=ds.sortby('time').drop_duplicates(dim='time',keep='first')
-    ds=ds.sel(height=slice(0,height_max/1000)).compute()
 
     #QC flags
     ds['cbh'][(ds['lwp']<config['min_lwp']).compute()]=ds['height'].max()#remove clouds with low lwp
