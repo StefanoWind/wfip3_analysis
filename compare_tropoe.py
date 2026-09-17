@@ -34,7 +34,7 @@ time_tolerance=pd.Timedelta('5min')#max time difference for matching points acro
 variables=['temperature','waterVapor','gamma','cbh','rmsa','lwp']
 var_names={'temperature':r'$T$','waterVapor':r'$r$'}
 units={'temperature':r'$^\circ$C','waterVapor':'g kg$^{-1}$'}
-limits={'temperature':[-20,40],'waterVapor':[0,20]}
+limits={'temperature':[-20,40],'waterVapor':[0,20],'dtemperature':[-4,4],'dwaterVapor':[-2,2]}
 
 #barge on-station GPS filtering
 barge_gps_source=os.path.join(cd,'data','WHOI_WFIP3_barge_bowstern_GPS_22-Oct-2024.dat')
@@ -128,7 +128,7 @@ if n_sites>1:
             h=int(np.round(data_excl[sites[0]].height.isel(height=i_h).values*1000))#[m] actual height at this index
 
             #match data across all site pairs, and find the common histogram count range
-            diff_bins=np.arange(-2,2.1,0.1)
+            diff_bins=np.linspace(limits[f'd{var}'][0],limits[f'd{var}'][1],100)
             pairs={}
             max_count=0
             for i,j in itertools.combinations(range(n_sites),2):
@@ -137,10 +137,8 @@ if n_sites>1:
                 df=pd.merge_asof(s1.sort_index().reset_index(),s2.sort_index().reset_index(),
                                   on='time',tolerance=time_tolerance,direction='nearest').dropna()
                 pairs[(i,j)]=df
-                counts,_=np.histogram((df['y']-df['x']).values,bins=diff_bins)
-                max_count=max(max_count,counts.max() if len(counts)>0 else 0)
 
-            fig,axs=plt.subplots(n_sites,n_sites,figsize=(2.5*n_sites+2,2.5*n_sites+2))
+            fig,axs=plt.subplots(n_sites,n_sites,figsize=(2.5*n_sites+2,2.5*n_sites+1))
             for i in range(n_sites):
                 for j in range(n_sites):
                     ax=axs[i,j]
@@ -167,7 +165,7 @@ if n_sites>1:
                     else:#upper triangle: histogram of the difference between sites, with bias and RMSE stamped on top
                         df=pairs[(i,j)]
                         diff=(df['y']-df['x']).values
-                        ax.hist(diff,bins=diff_bins,color='gray')
+                        ax.hist(diff,bins=diff_bins,density=True,color='gray')
                         if len(diff)>0:
                             bias=np.nanmean(diff)
                             rmse=np.sqrt(np.nanmean(diff**2))
@@ -175,10 +173,10 @@ if n_sites>1:
                                     transform=ax.transAxes,va='top',fontsize=8)
                         ax.set_title(f'{sites[j]}$-${sites[i]}',fontsize=9)
                         ax.set_xlim(diff_bins[0],diff_bins[-1])
-                        ax.set_ylim(0,max_count*1.05 if max_count>0 else 1)
+                        ax.set_ylim(0,1)
                         ax.grid()
                         xlabel=f'$\\Delta$ {var_names[var]} [{unit}]'
-                        ylabel='Count'
+                        ylabel='Probability'
 
                     #y label/ticks only on the leftmost non-diagonal cell of the row,
                     #x label/ticks only on the bottommost non-diagonal cell of the column,
@@ -251,7 +249,8 @@ if n_sites_full>1:
             diff=ds_i[var]-ds_j_aligned[var]
             diff_hourly=diff.groupby('time.hour').mean('time').transpose('height','hour')
 
-            im=ax.pcolormesh(diff_hourly.hour.values,heights_m,diff_hourly.values,shading='nearest',cmap='seismic',vmin=-2,vmax=2)
+            im=ax.pcolormesh(diff_hourly.hour.values,heights_m,diff_hourly.values,shading='nearest',cmap='seismic',
+                             vmin=limits[f'd{var}'][0],vmax=limits[f'd{var}'][1])
             ax.set_title(f'{sites_full[i]}$-${sites_full[j]}',fontsize=9)
             ax.set_xlim(0,23)
             ax.set_xticks(np.arange(0,24,6))
@@ -333,8 +332,12 @@ if n_sites>1 and len(layout)==n_sites:
 
         for stat_name,stat,cmap in [('Bias',bias,'seismic'),('RMSE',rmse,'Reds')]:
             off_diag=~np.eye(n_sites,dtype=bool)
-            vmax=np.nanmax(np.abs(stat[:,off_diag]))
-            vmin=-vmax if stat_name=='Bias' else 0
+            if stat_name=='Bias':
+                vmin=limits[f'd{var}'][0]
+                vmax=limits[f'd{var}'][1]
+            else:
+                vmin=0
+                vmax=limits[f'd{var}'][1]
 
             fig,axs=plt.subplots(len(heights),n_sites,figsize=(3.2*n_sites,3.2*len(heights)),squeeze=False)
             for i_h in range(len(heights)):
