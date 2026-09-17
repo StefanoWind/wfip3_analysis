@@ -185,8 +185,8 @@ if n_sites>1:
 
             fig.suptitle(f'{var_names[var]} at {h} m')
             plt.tight_layout()
-            # plt.savefig(os.path.join(cd,f'figures/tropoe_comp/{var}.{h}m.regression_grid.png'))
-            # plt.close(fig)
+            plt.savefig(os.path.join(cd,f'figures/tropoe_comp/{var}.{h}m.regression_grid.png'))
+            plt.close(fig)
 
 #time series at each height, stacked vertically
 tmin=min(data[name].time.min().values for name in data)
@@ -214,8 +214,8 @@ for var,unit in units.items():
 
     fig.suptitle(f'{var_names[var]} time series')
     plt.tight_layout()
-    # plt.savefig(os.path.join(cd,f'figures/tropoe_comp/timeseries.{var}.png'))
-    # plt.close(fig)
+    plt.savefig(os.path.join(cd,f'figures/tropoe_comp/timeseries.{var}.png'))
+    plt.close(fig)
 
 #diurnal mean difference heatmaps: single figure, grid of sites
 #(lower triangle = temperature difference, upper triangle = mixing ratio difference)
@@ -275,8 +275,8 @@ if n_sites_full>1:
     if im_water is not None:#vertical colorbar spanning the full height, on the right
         cax_water=fig.add_axes([0.91,grid_bottom,0.02,grid_top-grid_bottom])
         fig.colorbar(im_water,cax=cax_water,label=f'{var_names["waterVapor"]} difference [{units["waterVapor"]}]')
-    # plt.savefig(os.path.join(cd,'figures/tropoe_comp/diurnal_diff_grid.png'))
-    # plt.close(fig)
+    plt.savefig(os.path.join(cd,'figures/tropoe_comp/diurnal_diff_grid.png'))
+    plt.close(fig)
 
 #site maps of overall bias/RMSE relative to a reference site: one figure per variable per statistic,
 #grid of reference site (columns) x height (rows), each subplot maps all sites colored by the statistic
@@ -357,5 +357,5 @@ if n_sites>1 and len(layout)==n_sites:
             grid_bottom=axs[-1,-1].get_position().y0
             cax=fig.add_axes([0.93,grid_bottom,0.02,grid_top-grid_bottom])#colorbar spanning the full height
             fig.colorbar(sc,cax=cax,label=f'{stat_name} [{unit}]')
-            # plt.savefig(os.path.join(cd,f'figures/tropoe_comp/{var}.{stat_name.lower()}_map.png'))
-            # plt.close(fig)
+            plt.savefig(os.path.join(cd,f'figures/tropoe_comp/{var}.{stat_name.lower()}_map.png'))
+            plt.close(fig)
