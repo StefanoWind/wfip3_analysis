@@ -128,7 +128,7 @@ if n_sites>1:
             h=int(np.round(data_excl[sites[0]].height.isel(height=i_h).values*1000))#[m] actual height at this index
 
             #match data across all site pairs, and find the common histogram count range
-            diff_bins=np.linspace(limits[f'd{var}'][0],limits[f'd{var}'][1],100)
+            diff_bins=np.linspace(limits[f'd{var}'][0],limits[f'd{var}'][1],51)
             pairs={}
             max_count=0
             for i,j in itertools.combinations(range(n_sites),2):
@@ -299,7 +299,7 @@ layout=layout.loc[[s for s in sites if s in layout.index]]
 if n_sites>1 and len(layout)==n_sites:
     lons=np.array([layout.loc[s,'Longitude'] for s in sites])
     lats=np.array([layout.loc[s,'Latitude'] for s in sites])
-    margin=0.1#[deg] padding around the sites' bounding box
+    margin=0.2#[deg] padding around the sites' bounding box
     xlim=(lons.min()-margin,lons.max()+margin)
     ylim=(lats.min()-margin,lats.max()+margin)
     aspect=1/np.cos(np.deg2rad(lats.mean()))#approximate equal-distance aspect ratio at this latitude
