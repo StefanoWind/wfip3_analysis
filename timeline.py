@@ -5,6 +5,9 @@ Read barge movement file
 
 import os
 cd=os.getcwd()
+import sys
+import re
+import yaml
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -21,16 +24,31 @@ matplotlib.rcParams['font.size'] = 14
 plt.close('all')
 warnings.filterwarnings('ignore')
 
+
+    
 #%% Inputs
-username='sletizia'
-password='pass_DAP1506@'
 
-sites=["Martha's Vineyard","Cape Cod","Rhode Island","Barge"]
+sites=["Barge","Cape Cod","Martha's Vineyard","NOAA Pisces Cruise","Rhode Island"]
 
-channels={"Martha's Vineyard":['wfip3/mvco.assist.z01.00','wfip3/mvco.ceil.z01.00'],
-          "Cape Cod":         ['wfip3/caco.assist.z01.00','wfip3/caco.lidar.z02.a0','wfip3/caco.ceil.z01.b0','wfip3/caco.met.z01.00'],
-          "Rhode Island":     ['wfip3/rhod.assist.z01.00','wfip3/rhod.lidar.z01.a0','wfip3/rhod.met.z01.00'],
-          "Barge":            ['wfip3/barg.assist.z01.00','wfip3/barg.ceil.z01.b0','wfip3/barg.ecflux.z01.a0']}
+if len(sys.argv)==1:
+    source_config='configs/config.yaml'
+    sdate='20240801000000'#start date for data search
+    edate='20240805000000'#end date for data search
+else:
+    source_config=sys.argv[1]
+    sdate=sys.argv[2]
+    edate=sys.argv[3]
+    
+with open(source_config, 'r') as fid:
+    config = yaml.safe_load(fid)
+    
+add_sources=config['add_sources']
+    
+channels={"Barge":             ['wfip3/barg.assist.z01.00','wfip3/barg.ceil.z01.b0','wfip3/barg.ecflux.z01.a0',add_sources['wfip3/barg.assist.tropoe.z01.c1']],
+          "Cape Cod":          ['wfip3/caco.assist.z01.00','wfip3/caco.lidar.z02.a0','wfip3/caco.ceil.z01.b0','wfip3/caco.met.z01.00',add_sources['wfip3/caco.assist.tropoe.z01.c1']],
+          "Martha's Vineyard": ['wfip3/mvco.assist.z01.00','wfip3/mvco.ceil.z01.00',add_sources['wfip3/mvco.assist.tropoe.z01.c1']],
+          "NOAA Pisces Cruise":['wfip3/noaa_ship.assist.z01.00','wfip3/noaa_ship.ceil.z01.b0',add_sources['wfip3/noaa_ship.met.merged.r01.c0'],add_sources['wfip3/noaa_ship.assist.tropoe.z01.c1']],
+          "Rhode Island":      ['wfip3/rhod.assist.z01.00','wfip3/rhod.lidar.z01.a0','wfip3/rhod.met.z01.00',add_sources['wfip3/rhod.assist.tropoe.z01.c1']]}
 
 ext={'wfip3/mvco.assist.z01.00':'assistcha',
      'wfip3/mvco.ceil.z01.00':'',
@@ -43,7 +61,15 @@ ext={'wfip3/mvco.assist.z01.00':'assistcha',
      'wfip3/rhod.met.z01.00':'',
      'wfip3/barg.assist.z01.00':'assistno12cha',
      'wfip3/barg.ceil.z01.b0':'',
-     'wfip3/barg.ecflux.z01.a0':''}
+     'wfip3/barg.ecflux.z01.a0':'',
+     'wfip3/noaa_ship.assist.z01.00':'assistno12cha',
+     'wfip3/noaa_ship.ceil.z01.b0':'',
+     add_sources['wfip3/barg.assist.tropoe.z01.c1']:'',
+     add_sources['wfip3/caco.assist.tropoe.z01.c1']:'',
+     add_sources['wfip3/mvco.assist.tropoe.z01.c1']:'',
+     add_sources['wfip3/noaa_ship.assist.tropoe.z01.c1']:'',
+     add_sources['wfip3/rhod.assist.tropoe.z01.c1']:'',
+     add_sources['wfip3/noaa_ship.met.merged.r01.c0']:''}
      
      
 dtype= {'wfip3/mvco.assist.z01.00':'cdf',
@@ -57,10 +83,16 @@ dtype= {'wfip3/mvco.assist.z01.00':'cdf',
         'wfip3/rhod.met.z01.00':'csv',
         'wfip3/barg.assist.z01.00':'cdf',
         'wfip3/barg.ceil.z01.b0':'nc',
-        'wfip3/barg.ecflux.z01.a0':'nc'}
+        'wfip3/barg.ecflux.z01.a0':'nc',
+        'wfip3/noaa_ship.assist.z01.00':'cdf',
+        'wfip3/noaa_ship.ceil.z01.b0':'nc',
+        add_sources['wfip3/barg.assist.tropoe.z01.c1']:'nc',
+        add_sources['wfip3/caco.assist.tropoe.z01.c1']:'nc',
+        add_sources['wfip3/mvco.assist.tropoe.z01.c1']:'nc',
+        add_sources['wfip3/noaa_ship.assist.tropoe.z01.c1']:'nc',
+        add_sources['wfip3/rhod.assist.tropoe.z01.c1']:'nc',
+        add_sources['wfip3/noaa_ship.met.merged.r01.c0']:'nc'}
 
-sdate='20240801000000'#start date for data search
-edate='20240805000000'#end date for data search
 hours=168
 
 #barge info
@@ -128,19 +160,37 @@ def dap_search(channel,sdate,edate,ftype,ext1,hours=30):
     
     return search_all
 
+def local_search(path,sdate,edate,ftype):
+    '''
+    Find local files named <site>.*.YYYYmmdd.HHMMSS.<ftype> in path and return their datetimes within [sdate, edate]
+    '''
+    if not os.path.isdir(path):
+        print(f'Local folder not found: {path}')
+        return np.array([],dtype='datetime64[s]')
+
+    site_prefix=os.path.basename(os.path.normpath(path)).split('.')[0]
+    pattern=re.compile(rf'^{re.escape(site_prefix)}\..*\.(\d{{8}}\.\d{{6}})\.{ftype}$')
+    print(f'Searching: local folder {path} for format {ftype}')
+
+    times=np.array([np.datetime64(datetime.strptime(m.group(1),'%Y%m%d.%H%M%S')) for m in map(pattern.match,sorted(os.listdir(path))) if m],
+                   dtype='datetime64[s]')
+    return times[(times>=strtime_to_dt64(sdate))&(times<=strtime_to_dt64(edate))]
+
 #%% Initalization
 a2e = DAP('wdh.energy.gov',confirm_downloads=False)
-a2e.setup_cert_auth(username=username, password=password)
+a2e.setup_cert_auth(username=config['username'], password=config['password'])
 
 #%% Main
 time_file={}
 for site in sites:
     time_file[site]={}
     for channel in channels[site]:
-        
-        files=dap_search(channel, sdate, edate, dtype[channel], ext[channel],hours)
-    
-        time_file[site][channel]=np.array([datetime.strptime(f["date_time"],"%Y%m%d%H%M%S") for f in files])
+
+        if channel in add_sources.values():
+            time_file[site][channel]=local_search(channel, sdate, edate, dtype[channel])
+        else:
+            files=dap_search(channel, sdate, edate, dtype[channel], ext[channel],hours)
+            time_file[site][channel]=np.array([datetime.strptime(f["date_time"],"%Y%m%d%H%M%S") for f in files])
 
 barge_gps=pd.read_csv(barge_gps_source, delim_whitespace=True,header=None, names=barge_gps_headers.split(' '))
 barge_gps=barge_gps.replace(999,np.nan)
@@ -158,11 +208,12 @@ barge_end=np.where(np.diff(inplace)<0)[0]
 
 #%% Plots
 all_channels=sorted({channel for site in sites for channel in channels[site]})
+labels={channel:key for key,channel in add_sources.items()}
 
 date_fmt=mdates.DateFormatter('%b %Y')
 fig,axs=plt.subplots(len(sites),1,figsize=(16,3*len(sites)),sharex=True,squeeze=False)
 for ax,site in zip(axs[:,0],sites):
-    site_channels=channels[site]
+    site_channels=sorted(channels[site],key=lambda c: labels.get(c,c))
     if site=='Barge':
         for ctr,(s,e) in enumerate(zip(barge_start,barge_end)):
             if ctr==0:
@@ -174,7 +225,7 @@ for ax,site in zip(axs[:,0],sites):
         ax.plot(t,np.zeros(len(t))+i,'.',markersize=10,color=colors[channel.split('.')[1]])
     ax.set_ylim(-0.5,len(site_channels)-0.5)
     ax.set_yticks(range(len(site_channels)))
-    ax.set_yticklabels(site_channels)
+    ax.set_yticklabels([labels.get(c,c) for c in site_channels])
     ax.set_title(site)
     ax.grid(True,color='#e1e0d9')
     ax.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1))
