@@ -21,7 +21,7 @@ warnings.filterwarnings('ignore')
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 12
+matplotlib.rcParams['font.size'] = 14
 matplotlib.rcParams['savefig.dpi'] = 300
 plt.close('all')
 
@@ -200,6 +200,7 @@ if n_sites>1:
 #time series at each height, stacked vertically
 tmin=min(data[name].time.min().values for name in data)
 tmax=max(data[name].time.max().values for name in data)
+site_colors=dict(zip(data,plt.get_cmap('Dark2').colors))
 for var,unit in units.items():
     fig,axs=plt.subplots(len(heights),1,figsize=(10,3*len(heights)),sharex=True)
     axs=np.atleast_1d(axs)
@@ -209,21 +210,21 @@ for var,unit in units.items():
             ax.axvspan(s,e,facecolor='lightblue',hatch='//',edgecolor='gray',alpha=0.3,zorder=0,
                        label='Barge on station' if (i_h==0 and ctr==0) else None)
         for name in data:
-            ax.plot(data[name].time,data[name][var].isel(height=i_h),'.',markersize=3,alpha=0.5,label=name)
+            ax.plot(data[name].time,data[name][var].isel(height=i_h),'.',markersize=3,alpha=0.5,color=site_colors[name],label=name)
         ax.set_xlim(tmin,tmax)
         ax.set_ylabel(f'{var_names[var]} [{unit}]')
         ax.set_title(f'{h} m')
         ax.grid()
         if i_h<len(heights)-1:
             ax.tick_params(labelbottom=False)
-    axs[0].legend()
+    axs[0].legend(loc='upper left',bbox_to_anchor=(1.01,1))
     axs[-1].set_xlabel('Time (UTC)')
     axs[-1].xaxis.set_major_locator(mdates.AutoDateLocator())
     axs[-1].xaxis.set_major_formatter(mdates.ConciseDateFormatter(axs[-1].xaxis.get_major_locator()))
 
     fig.suptitle(f'{var_names[var]} time series')
     plt.tight_layout()
-    plt.savefig(os.path.join(cd,f'figures/tropoe_comp/timeseries.{var}.png'))
+    plt.savefig(os.path.join(cd,f'figures/tropoe_comp/timeseries.{var}.png'),bbox_inches='tight')
     plt.close(fig)
 
 #diurnal mean difference heatmaps: single figure, grid of sites
@@ -247,8 +248,9 @@ if n_sites_full>1:
             ds_j_aligned=data_full_excl[sites_full[j]].reindex(time=ds_i.time,method='nearest',tolerance=time_tolerance)
             heights_m=ds_i.height.values*1000
             diff=ds_i[var]-ds_j_aligned[var]
-            diff_hourly=diff.groupby('time.hour').mean('time').transpose('height','hour')
+            diff_hourly=diff.groupby('time.hour').mean('time').reindex(hour=np.arange(24)).transpose('height','hour')
 
+            ax.set_facecolor('gray')
             im=ax.pcolormesh(diff_hourly.hour.values,heights_m,diff_hourly.values,shading='nearest',cmap='seismic',
                              vmin=limits[f'd{var}'][0],vmax=limits[f'd{var}'][1])
             ax.set_title(f'{sites_full[i]}$-${sites_full[j]}',fontsize=9)
