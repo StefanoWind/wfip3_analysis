@@ -103,7 +103,7 @@ lon0=-70.787#[deg]
 max_dist=600#[m]
 
 #graphics
-colors={'assist':'r','ceil':'b','met':'k','lidar':'g','ecflux':'k'}
+colors={'assist.z':'r','ceil':'b','met':'purple','lidar':'g','ecflux':'purple','assist.tropoe':'y'}
 
 #%% Functions
 def strtime_to_dt64(strtime):
@@ -222,7 +222,7 @@ for ax,site in zip(axs[:,0],sites):
                 ax.axvspan(barge_gps_time[s], barge_gps_time[e],facecolor='lightblue', hatch='//',edgecolor='gray',alpha=0.5)
     for i,channel in enumerate(site_channels):
         t=time_file[site][channel]
-        ax.plot(t,np.zeros(len(t))+i,'.',markersize=10,color=colors[channel.split('.')[1]])
+        ax.plot(t,np.zeros(len(t))+i,'.',markersize=10,color=next(c for key,c in colors.items() if f'.{key}' in channel))
     ax.set_ylim(-0.5,len(site_channels)-0.5)
     ax.set_yticks(range(len(site_channels)))
     ax.set_yticklabels([labels.get(c,c) for c in site_channels])
