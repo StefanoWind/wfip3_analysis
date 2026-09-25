@@ -211,6 +211,13 @@ all_channels=sorted({channel for site in sites for channel in channels[site]})
 labels={channel:key for key,channel in add_sources.items()}
 
 date_fmt=mdates.DateFormatter('%b %Y')
+t_start=pd.Timestamp(strtime_to_dt64(sdate))
+t_end=pd.Timestamp(strtime_to_dt64(edate))
+semiannual=pd.date_range(t_start.normalize(),t_end,freq='MS')
+semiannual=semiannual[semiannual.month.isin([1,7])]
+min_gap=pd.Timedelta(days=45)#drop semiannual ticks too close to start/end to avoid overlapping labels
+semiannual=semiannual[(semiannual-t_start>min_gap)&(t_end-semiannual>min_gap)]
+xticks=mdates.date2num([t_start,*semiannual,t_end])
 fig,axs=plt.subplots(len(sites),1,figsize=(16,3*len(sites)),sharex=True,squeeze=False)
 for ax,site in zip(axs[:,0],sites):
     site_channels=sorted(channels[site],key=lambda c: labels.get(c,c))
@@ -228,7 +235,8 @@ for ax,site in zip(axs[:,0],sites):
     ax.set_yticklabels([labels.get(c,c) for c in site_channels])
     ax.set_title(site)
     ax.grid(True,color='#e1e0d9')
-    ax.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1))
+    ax.set_xlim(xticks[0],xticks[-1])
+    ax.set_xticks(xticks)
     ax.xaxis.set_major_formatter(date_fmt)
     if site=='Barge':
         ax.legend(draggable=True)
