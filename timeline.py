@@ -233,4 +233,5 @@ for ax,site in zip(axs[:,0],sites):
     if site=='Barge':
         ax.legend(draggable=True)
 plt.tight_layout()
+plt.savefig(os.path.join(cd,'figures',f'{sdate}.{edate}.timeline.png'))
 
