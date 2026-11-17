@@ -88,43 +88,50 @@ def to_dataset(rec):
 
 #%% Main
 
-#read IMU
+#read IMU one file at a time, keeping per-window sums and per-file PSD only (memory)
 files_imu=sorted(glob.glob(source_imu))
-Data_imu_all=[to_dataset(read_mip(f)) for f in files_imu]
-
-#read ASSIST
-files_irs=sorted(glob.glob(source_irs))
-Data_irs=xr.open_mfdataset(files_irs,data_vars='minimal')
-rad_imag=Data_irs.mean_imaginary_rad_985_990.where(Data_irs.qc_mean_imaginary_rad_985_990==0).compute()
-
-#convert angles and angular rates to degrees
-Data_imu_all=[d.assign({v:np.degrees(d[v]) for v in ['roll','pitch','gyro_x','gyro_y','gyro_z']}) for d in Data_imu_all]
-Data_imu=xr.concat(Data_imu_all,dim='time').sortby('time')
-
-#statistics over common time windows
-imu=Data_imu[list(variables)].resample(time=window)
-irs=rad_imag.resample(time=window)
-imu_mean=imu.mean()
-imu_std=imu.std()
-stats=xr.Dataset({'rad_imag_mean':irs.mean(),'rad_imag_std':irs.std(),'rad_imag_n':irs.count(),'imu_n':imu.count()['roll']})
-for v in variables:
-    stats[f'{v}_mean']=imu_mean[v]
-    stats[f'{v}_std']=imu_std[v]
-stats=stats.where((stats.rad_imag_n>=min_n_irs)&(stats.imu_n>=min_n_imu),drop=True)
-print(f'{stats.time.size} valid {window} windows')
-
-#power spectral density per continuous file (Hann window, 50% overlap) [Welch, 1967]
+sums=[]
 psd={v:[] for v in variables}
-for d in Data_imu_all:
+for f in files_imu:
+    d=to_dataset(read_mip(f))[list(variables)]
+    d=d.assign({v:np.degrees(d[v]) for v in ['roll','pitch','gyro_x','gyro_y','gyro_z']})
+
+    df=d.to_dataframe()
+    t_win=df.index.floor(window)
+    sums.append(pd.concat({'sum':df.groupby(t_win).sum(),'sum2':(df**2).groupby(t_win).sum(),'n':df.groupby(t_win).count()},axis=1))
+
+    #power spectral density per continuous file (Hann window, 50% overlap) [Welch, 1967]
     d=d.sortby('time').drop_duplicates('time')
     if d.time.size<nperseg:
         continue
     time_reg=np.arange(d.time.values[0],d.time.values[-1],np.timedelta64(int(1000/fs_imu),'ms'))
-    d_reg=d[list(variables)].interp(time=time_reg)
+    d_reg=d.interp(time=time_reg)
     for v in variables:
         f_psd,P=welch(d_reg[v].values,fs=fs_imu,nperseg=nperseg,detrend='linear')
         psd[v].append(P)
 psd=xr.Dataset({v:('freq',np.mean(psd[v],axis=0)) for v in variables},coords={'freq':f_psd})
+
+#combine windows across files (population std, as xarray default)
+sums=pd.concat(sums).groupby(level=0).sum()
+imu_mean=sums['sum']/sums['n']
+imu_std=np.sqrt(np.maximum(sums['sum2']/sums['n']-imu_mean**2,0))
+
+#read ASSIST
+files_irs=sorted(glob.glob(source_irs))
+Data_irs=xr.open_mfdataset(files_irs,data_vars='minimal',coords='minimal',compat='override')
+rad_imag=Data_irs.mean_imaginary_rad_985_990.where(Data_irs.qc_mean_imaginary_rad_985_990==0).compute()
+
+#statistics over common time windows
+irs=rad_imag.resample(time=window)
+stats=xr.Dataset({'rad_imag_mean':irs.mean(),'rad_imag_std':irs.std(),'rad_imag_n':irs.count()})
+imu_stats=pd.DataFrame({'imu_n':sums['n']['roll']})
+for v in variables:
+    imu_stats[f'{v}_mean']=imu_mean[v]
+    imu_stats[f'{v}_std']=imu_std[v]
+imu_stats.index.name='time'
+stats=xr.merge([stats,xr.Dataset.from_dataframe(imu_stats)],join='inner')
+stats=stats.where((stats.rad_imag_n>=min_n_irs)&(stats.imu_n>=min_n_imu),drop=True)
+print(f'{stats.time.size} valid {window} windows')
 
 #output
 with pd.ExcelWriter(os.path.join(cd,'data',f'barge_motion_rad_imag_stats_{window}.xlsx')) as writer:
