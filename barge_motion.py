@@ -72,7 +72,8 @@ def read_mip(file):
     rec=np.ascontiguousarray(packets[valid]).view(PACKET).ravel()
     for desc,names in FIELDS:
         rec=rec[rec[f'desc_{desc}']==desc]
-    return rec
+    #GPS week stays 0 until the receiver gets a fix (timestamps fall in 1980); the flags field does not flag this
+    return rec[rec['gps_week']>0]
 
 def spearman_ci(x,y,alpha=0.05):
     # Fisher z-transform with Spearman standard error [Bonett and Wright, 2000]
