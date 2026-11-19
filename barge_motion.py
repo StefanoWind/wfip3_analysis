@@ -150,6 +150,17 @@ for day in days:
 #read daily IMU statistics
 Data_c0=[xr.open_dataset(f).load() for f in sorted(glob.glob(os.path.join(dir_c0,'barg.motion.z01.c0.*.nc')))]
 imu_stats=xr.concat([d.drop_dims('freq').drop_vars('n_psd') for d in Data_c0],dim='time')
+
+#windows split across daily files (IMU files spanning midnight) are pooled by sample count
+w=imu_stats.imu_n
+n=w.groupby('time').sum()
+pooled={'imu_n':n}
+for v in variables:
+    m,s=imu_stats[f'{v}_mean'],imu_stats[f'{v}_std']
+    mean=(m*w).groupby('time').sum()/n
+    pooled[f'{v}_mean']=mean
+    pooled[f'{v}_std']=np.sqrt(np.maximum(((s**2+m**2)*w).groupby('time').sum()/n-mean**2,0))
+imu_stats=xr.Dataset(pooled)
 n_psd=xr.concat([d.n_psd for d in Data_c0],dim='day')
 psd=xr.concat([d[[f'{v}_psd' for v in variables]].fillna(0) for d in Data_c0],dim='day')
 psd=(psd*n_psd).sum('day')/n_psd.sum('day')
